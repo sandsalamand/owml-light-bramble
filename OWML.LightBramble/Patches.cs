@@ -2,6 +2,7 @@
 using UnityEngine;
 using System.Reflection;
 using HarmonyLib;
+using OWML.ModHelper;
 
 namespace LightBramble
 {
@@ -14,11 +15,56 @@ namespace LightBramble
 	public static class AnglerPatches
 	{
 		[HarmonyPostfix]
-		[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.OnSectorOccupantsUpdated))]
-		public static void OnSectorOccupantsUpdated(AnglerfishController __instance)
+		[HarmonyPatch(typeof(SectoredMonoBehaviour), nameof(SectoredMonoBehaviour.OnSectorOccupantAdded))]
+		public static void OnSectorOccupantAdded(SectoredMonoBehaviour __instance, SectorDetector sectorDetector)
 		{
-			LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
-				LightBramble.inst.ToggleFishes(LightBramble.inst._disableFish), 2);
+			if (__instance.GetType() != typeof(AnglerfishController))
+				return;
+
+			AnglerfishController anglerFishController = (AnglerfishController)__instance;
+
+			//var sector = anglerFishController.GetValue<Sector>("_sector");
+
+			LightBramble.inst.DebugLog("angler sector occupant added, sectorDetector is " + sectorDetector.gameObject.name + " , occupant type is " + sectorDetector.GetOccupantType());
+
+			if ((sectorDetector.GetOccupantType() == DynamicOccupant.Player || sectorDetector.GetOccupantType() == DynamicOccupant.Probe))
+			{
+				LightBramble.inst.ToggleFishes(LightBramble.inst.DisableFishConfig);
+				LightBramble.inst.DebugLog("toggling fish, DisableFishConfig is " + LightBramble.inst.DisableFishConfig);
+			}
+		}
+
+		[HarmonyPrefix]
+		[HarmonyPatch(typeof(AnglerfishController), nameof(AnglerfishController.OnSectorOccupantsUpdated))]
+		public static bool OnSectorOccupantsUpdated(AnglerfishController __instance)
+		{
+			var sector = __instance.GetValue<Sector>("_sector");
+
+			if (__instance.gameObject.activeSelf && !sector.ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
+			{
+				LightBramble.inst.DebugLog("player, probe, and ship all left sector. disabling fish");
+				LightBramble.inst.ToggleFishes(shouldDisable: true);
+			}
+			return false;
+
+
+			//LightBramble.inst.ModHelper.Events.Unity.FireInNUpdates(() =>
+			//	LightBramble.inst.ToggleFishes(LightBramble.inst.DisableFishConfig), 2);
+
+			//if (!__instance.gameObject.activeSelf && sector.ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
+			//{
+			//	__instance.gameObject.SetActive(true);
+			//	__instance.GetAttachedOWRigidbody()?.Unsuspend(true);
+			//	__instance.RaiseEvent("OnAnglerUnsuspended", currentState);
+			//}
+			//else if (__instance.gameObject.activeSelf && !sector.ContainsAnyOccupants(DynamicOccupant.Player | DynamicOccupant.Probe | DynamicOccupant.Ship))
+			//{
+			//	__instance.GetAttachedOWRigidbody()?.Suspend();
+			//	__instance.gameObject.SetActive(false);
+			//	__instance.RaiseEvent("OnAnglerSuspended", currentState);
+			//}
+
+			//return false;
 		}
 
 		[HarmonyPostfix]
@@ -26,6 +72,35 @@ namespace LightBramble
 		public static void AwakePostfix(AnglerfishController __instance)
 		{
 			LightBramble.inst.collections.anglerfishList.Add(__instance);
+		}
+	}
+
+	[HarmonyPatch]
+	public static class FogLightManagerPatch
+	{
+		//[HarmonyPrefix]
+		//[HarmonyPatch(typeof(FogLightManager), nameof(FogLightManager.WillRenderCanvases))]
+		//public static bool WillRenderCanvasesPrefix(FogLightManager __instance)
+		//{
+		//	if (LightBramble.inst.DisableFishConfig)
+		//		return false;
+
+		//	return true;
+		//}
+
+		[HarmonyPrefix]
+		[HarmonyPatch(typeof(FogLightManager), "IsLightVisible")]
+		public static bool IsLightVisiblePatch(ref bool __result)
+		{
+			//if disabling fish, then always return false to hide lights
+			if (LightBramble.inst.DisableFishConfig)
+			{
+				__result = false;
+				return false;	//do not run original
+			}
+			//if not disabling fish, then allow the function to run as normally
+			else
+				return true;
 		}
 	}
 

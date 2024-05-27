@@ -28,9 +28,9 @@ namespace LightBramble
 		private bool isInBramble = false;   //updated by a global event called by the game
 
 		//Config toggles, modified by Configure when the user exits the OWML mod toggle page
-		public bool _swapMusic => CurrentConfig.swapMusic;
-		public bool _disableFish => CurrentConfig.disableFish;
-		public bool _disableFog => CurrentConfig.disableFog;
+		public bool SwapMusicConfig => CurrentConfig.swapMusic;
+		public bool DisableFishConfig => CurrentConfig.disableFish;
+		public bool DisableFogConfig => CurrentConfig.disableFog;
 
 		private MethodInfo anglerChangeState;
 
@@ -107,9 +107,9 @@ namespace LightBramble
 			DebugLog("Player Entered Bramble");
 			isInBramble = true;
 
-			if (_disableFog)
+			if (DisableFogConfig)
 				DisableFog();
-			if (_swapMusic)
+			if (SwapMusicConfig)
 				musicManager.SwapMusic(BrambleMusic.Deku, 1f, 0f);
 			else
 				musicManager.SwapMusic(BrambleMusic.Original, 1f, 0f);
@@ -141,14 +141,14 @@ namespace LightBramble
 			if (!isInSolarSystem || !isInBramble)
 				return;
 			
-			ModHelper.Events.Unity.FireInNUpdates(() => ToggleFishes(_disableFish), 2);
+			ToggleFishes(DisableFishConfig);
 
-			if (_swapMusic)
+			if (SwapMusicConfig)
 				musicManager?.SwapMusic(BrambleMusic.Deku);
 			else
 				musicManager?.SwapMusic(BrambleMusic.Original);
 	
-			if (_disableFog)
+			if (DisableFogConfig)
 				DisableFog();
 			else
 				EnableFog();
@@ -156,7 +156,6 @@ namespace LightBramble
 
 		internal void ToggleFishes(bool shouldDisable)
 		{
-			DebugLog("Toggling fish");
 			foreach (AnglerfishController anglerfishController in collections.anglerfishList)
 			{
 				ToggleFish(anglerfishController, shouldDisable);
@@ -193,7 +192,6 @@ namespace LightBramble
 
 		internal void EnableFog()
 		{
-			DebugLog("Enabling Fog");
 			foreach (KeyValuePair<FogWarpVolume, Color> kvp in collections.fogWarpVolumeDict)
 			{
 				kvp.Key.SetValue("_fogColor", kvp.Value);
@@ -210,21 +208,17 @@ namespace LightBramble
 
 		internal void DisableFog()
 		{
-			DebugLog("Disabling Fog");
 			foreach (KeyValuePair<FogWarpVolume, Color> kvp in collections.fogWarpVolumeDict)
 			{
 				kvp.Key.SetValue("_fogColor", Color.clear);
-				DebugLog("disabling fogWarpVolume");
 			}
 			foreach (KeyValuePair<PlanetaryFogController, Color> kvp in collections.planetaryFogControllerDict)
 			{
 				kvp.Key.fogTint = Color.clear;
-				DebugLog("disabling planetaryfogcontroller");
 			}
 			foreach (KeyValuePair<FogOverrideVolume, Color> kvp in collections.fogOverrideVolumeDict)
 			{
 				kvp.Key.tint = Color.clear;
-				DebugLog("disabling fogoverridevolume");
 			}
 		}
 
